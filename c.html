@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prueba de Cámara Móvil</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 1rem;
+      background: #f0f0f0;
+      color: #222;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      font-size: 1.3rem;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    video {
+      width: 100%;
+      max-width: 480px;
+      background: #000;
+      border-radius: 12px;
+    }
+    canvas {
+      display: none;
+    }
+    button {
+      margin: 6px;
+      padding: 10px 16px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      transition: 0.2s;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    a {
+      margin-top: 8px;
+      color: #007bff;
+      text-decoration: none;
+    }
+    #fileInput {
+      margin-top: 1rem;
+    }
+    footer {
+      font-size: 0.8rem;
+      margin-top: 2rem;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>📸 Prueba de Cámara Móvil</h1>
+
+  <video id="video" autoplay playsinline></video>
+
+  <div>
+    <button id="startRear">Cámara Trasera</button>
+    <button id="startFront">Cámara Frontal</button>
+    <button id="takePhoto">📷 Tomar Foto</button>
+    <button id="stopCamera">🛑 Detener</button>
+  </div>
+
+  <canvas id="canvas"></canvas>
+  <a id="downloadLink"></a>
+
+  <p>Fallback (si no funciona la cámara):</p>
+  <input id="fileInput" type="file" accept="image/*" capture="environment">
+
+  <footer>Funciona solo en HTTPS o localhost. Compatible con Android y iOS modernos.</footer>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const startRear = document.getElementById('startRear');
+    const startFront = document.getElementById('startFront');
+    const takePhoto = document.getElementById('takePhoto');
+    const stopCamera = document.getElementById('stopCamera');
+    const downloadLink = document.getElementById('downloadLink');
+    const fileInput = document.getElementById('fileInput');
+    let stream;
+
+    // Inicia cámara con modo frontal o trasero
+    async function startCamera(facingMode = 'environment') {
+      stopCamera(); // detener previa si hay
+      if (!navigator.mediaDevices?.getUserMedia) {
+        alert('Tu navegador no soporta acceso directo a cámara. Usa el selector de archivo.');
+        return;
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode },
+          audio: false
+        });
+        video.srcObject = stream;
+      } catch (err) {
+        alert('Error al iniciar cámara: ' + err.message);
+      }
+    }
+
+    // Detiene la cámara
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+        stream = null;
+      }
+    }
+
+    // Toma una foto y genera enlace de descarga
+    function takeSnapshot() {
+      if (!stream) {
+        alert('Primero inicia la cámara.');
+        return;
+      }
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        downloadLink.href = url;
+        downloadLink.download = 'foto_' + Date.now() + '.png';
+        downloadLink.textContent = '⬇️ Descargar foto';
+      }, 'image/png');
+    }
+
+    startRear.onclick = () => startCamera('environment');
+    startFront.onclick = () => startCamera('user');
+    takePhoto.onclick = takeSnapshot;
+    stopCamera.onclick = stopCamera;
+
+    // Fallback con input file
+    fileInput.onchange = e => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      window.open(url, '_blank');
+    };
+
+    // Aviso si getUserMedia no está disponible
+    if (!navigator.mediaDevices?.getUserMedia) {
+      console.warn('getUserMedia no soportado — se usará input file.');
+    }
+  </script>
+</body>
+</html>
